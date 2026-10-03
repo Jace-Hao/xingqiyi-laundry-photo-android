@@ -39,7 +39,7 @@ object PingResultReporter {
 
         if (caps.supportsMobileAddons) return base
 
-        // 旧服务端：不返回能力集，v1.3.0 新增的原始上传与「改备注」不可用。
+        // 旧服务端：不返回能力集，原始上传与「改备注」不可用。
         // 说清「连上了、只是服务端偏旧」，避免功能静默消失后被当成 App 的 bug。
         return "$base；服务端版本较旧，原始上传与「改备注」不可用，" +
             "建议将桌面端升级到 v${CapabilitiesDto.MIN_SERVER_VERSION}"

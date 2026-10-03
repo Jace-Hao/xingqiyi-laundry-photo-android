@@ -8,7 +8,7 @@ import org.junit.Test
 /**
  * [PingResultReporter] 的回归测试。
  *
- * 现场事故：用户桌面端是 v1.3.0 之前的旧构建，`/ping` 只返回
+ * 现场事故：用户桌面端是 v1.2.3 之前的旧构建，`/ping` 只返回
  * `{"ok":true,"data":{"app":"xingqiyi"}}`。
  *
  * 旧代码在这里对 `caps.serverVersion` 调 `.isBlank()`，而该字段被 Gson 填成了
@@ -54,13 +54,13 @@ class PingResultReporterTest {
     @Test
     fun `新版服务端展示版本号且不提旧`() {
         val caps = gson.fromJson(
-            """{"app":"xingqiyi-laundry-photo","apiVersion":2,"serverVersion":"1.3.0","features":{"uploadRaw":true,"setNote":true,"thumb":true,"photoTokenQuery":true}}""",
+            """{"app":"xingqiyi-laundry-photo","apiVersion":2,"serverVersion":"1.2.3","features":{"uploadRaw":true,"setNote":true,"thumb":true,"photoTokenQuery":true}}""",
             CapabilitiesDto::class.java
         )
 
         val msg = PingResultReporter.success(caps)
 
-        assertThat(msg).isEqualTo("连接成功，服务端版本 v1.3.0")
+        assertThat(msg).isEqualTo("连接成功，服务端版本 v1.2.3")
         assertThat(msg).doesNotContain("版本较旧")
     }
 

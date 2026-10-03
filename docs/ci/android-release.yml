@@ -1,0 +1,120 @@
+name: Android 发布
+
+# 移动端独立发布链路：只构建移动端、只上传到**本仓库**（xingqiyi-laundry-photo-android）。
+# 桌面端有自己仓库里的 desktop-release.yml，两端互不干涉 —— 这也保证桌面端
+# 的自动更新永远扫不到移动端的 APK。
+
+on:
+  push:
+    # 移动端 tag 形如 v1.0.0。注意：桌面端仓库的 tag 与这里无关，
+    # 两个仓库各自有独立的版本号序列。
+    tags: ['v*.*.*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '版本号（形如 1.0.0，须与 app/build.gradle.kts 的 versionName 一致）'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    name: 单元测试
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: 运行单元测试
+        run: ./gradlew testDebugUnitTest
+      - name: 上传测试报告
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: app/build/reports/tests/testDebugUnitTest/
+          if-no-files-found: ignore
+
+  release:
+    name: 构建并发布 APK
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      # 从 app/build.gradle.kts 读取版本，避免 Release 说明、tag、附件名三者对不上
+      - name: 读取版本号
+        id: ver
+        run: |
+          V=$(grep -m1 'versionName' app/build.gradle.kts | sed -E 's/.*"([0-9.]+)".*/\1/')
+          C=$(grep -m1 'versionCode' app/build.gradle.kts | sed -E 's/[^0-9]*([0-9]+).*/\1/')
+          echo "name=$V" >> "$GITHUB_OUTPUT"
+          echo "code=$C" >> "$GITHUB_OUTPUT"
+          echo "tag=v$V" >> "$GITHUB_OUTPUT"
+          echo "版本 $V（versionCode $C）"
+
+      - name: 校验 tag 与代码版本一致
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          if [ "$TAG" != "${{ steps.ver.outputs.tag }}" ]; then
+            echo "::error::tag $TAG 与 app/build.gradle.kts 的 versionName ${{ steps.ver.outputs.name }} 不一致"
+            exit 1
+          fi
+
+      - name: 写入签名密钥库
+        # 未配置 secrets 时跳过签名 —— release 会退回调试签名，
+        # 保证流水线在任何环境下都能出包（但正式发布必须配好 secrets）。
+        if: env.HAS_KEYSTORE == 'true'
+        env:
+          HAS_KEYSTORE: ${{ secrets.RELEASE_STORE_FILE_B64 != '' }}
+        run: |
+          echo "${{ secrets.RELEASE_STORE_FILE_B64 }}" | base64 -d > "$RUNNER_TEMP/release.jks"
+          echo "RELEASE_STORE_FILE=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+
+      - name: 构建 APK
+        env:
+          RELEASE_STORE_FILE: ${{ env.RELEASE_STORE_FILE }}
+          RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: ./gradlew assembleRelease assembleDebug
+
+      - name: 整理附件（纯英文名）
+        # GitHub 会剥离中文文件名，故统一使用 ASCII 名；label 保留中文仅影响展示，
+        # 不影响下载名，这里直接用 ASCII 名最省事。
+        run: |
+          mkdir -p out
+          cp app/build/outputs/apk/release/app-release.apk \
+             "out/xingqiyi-laundry-photo-android-v${{ steps.ver.outputs.name }}-release.apk"
+          cp app/build/outputs/apk/debug/app-debug.apk \
+             "out/xingqiyi-laundry-photo-android-v${{ steps.ver.outputs.name }}-debug.apk"
+          ls -la out
+
+      - name: 生成校验值
+        run: |
+          cd out && sha256sum *.apk | tee SHA256SUMS.txt
+
+      - name: 创建 Release 并上传附件
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.ver.outputs.tag }}
+          name: 移动端 v${{ steps.ver.outputs.name }}
+          body_path: docs/release/v${{ steps.ver.outputs.name }}-notes.md
+          draft: true
+          files: |
+            out/*.apk
+            out/SHA256SUMS.txt
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

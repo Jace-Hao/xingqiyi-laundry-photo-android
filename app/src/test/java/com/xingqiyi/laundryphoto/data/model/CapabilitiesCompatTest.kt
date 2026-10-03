@@ -12,7 +12,7 @@ import org.junit.Test
  *
  * ## 为什么要专门测这个
  *
- * 现场故障：用户桌面端是 v1.3.0 之前的旧构建，`GET /ping` 只返回
+ * 现场故障：用户桌面端是 v1.2.3 之前的旧构建，`GET /ping` 只返回
  * ```json
  * {"ok":true,"data":{"app":"xingqiyi"}}
  * ```
@@ -33,10 +33,10 @@ class CapabilitiesCompatTest {
     /** 现场旧版本桌面端的真实响应体，一个字段都不多 */
     private val legacyPingJson = """{"ok":true,"data":{"app":"xingqiyi"}}"""
 
-    /** v1.3.0 桌面端的完整响应体 */
+    /** v1.2.3 桌面端的完整响应体 */
     private val modernPingJson = """
         {"ok":true,"data":{"app":"xingqiyi-laundry-photo","apiVersion":2,
-        "serverVersion":"1.3.0","features":{"uploadRaw":true,"setNote":true,
+        "serverVersion":"1.2.3","features":{"uploadRaw":true,"setNote":true,
         "thumb":true,"photoTokenQuery":true}}}
     """.trimIndent()
 
@@ -106,7 +106,7 @@ class CapabilitiesCompatTest {
         val caps = parsePing(modernPingJson)
 
         assertEquals("xingqiyi-laundry-photo", caps.appName)
-        assertEquals("1.3.0", caps.serverVersionText)
+        assertEquals("1.2.3", caps.serverVersionText)
         assertEquals(2, caps.apiVersionValue)
         assertTrue(caps.supportsMobileAddons)
         assertTrue(caps.uploadRaw)

@@ -69,7 +69,7 @@ interface ApiService {
     @POST("api/records/renameBarcodeBatch")
     suspend fun renameBarcodeBatch(@Body body: Map<String, @JvmSuppressWildcards Any?>): ApiEnvelope<RenameBatchResult>
 
-    // 移动端新增（v1.3.0）：原始二进制上传 + 凭暂存文件建档 + 备注订正
+    // 移动端补充接口：原始二进制上传 + 凭暂存文件建档 + 备注订正
     @POST("upload")
     suspend fun uploadPhoto(
         @Header("x-file-name") fileName: String,

@@ -149,11 +149,11 @@ data class CapabilitiesDto(
 
     /**
      * 能力集 API 版本。老服务端无此字段时按 1 处理（仅基础能力）。
-     * 客户端 v1.3.0 引入的能力（原始上传、改备注）依赖 apiVersion >= 2。
+     * 配套能力（原始上传、改备注）依赖 apiVersion >= 2。
      */
     val apiVersionValue: Int get() = apiVersion ?: 1
 
-    /** 服务端是否为支持 v1.3.0 增量接口的新版 */
+    /** 服务端是否为支持增量接口（apiVersion >= 2）的新版 */
     val supportsMobileAddons: Boolean get() = apiVersionValue >= MIN_API_VERSION
 
     val uploadRaw: Boolean get() = features?.uploadRaw == true
@@ -163,13 +163,21 @@ data class CapabilitiesDto(
 
     companion object {
         /**
-         * 首个支持 v1.3.0 增量接口的协议版本号。
+         * 首个支持增量接口（原始上传、改备注）的协议版本号。
          * 低于此值（含缺失）即视为旧版服务端：原始上传与「改备注」不可用，走 base64 兼容通道。
          */
         const val MIN_API_VERSION = 2
 
-        /** 建议用户升级到的桌面端版本号，供升级指引文案使用 */
-        const val MIN_SERVER_VERSION = "1.3.0"
+        /**
+         * 建议用户升级到的**桌面端**版本号，供升级指引文案使用。
+         *
+         * 注意这是桌面端仓库（xingqiyi-laundry-photo）的版本号，不是本仓库的版本号。
+         * 桌面端版本线为 1.2.x：v1.2.2 之前的版本不带能力集接口，
+         * 首批带该接口的版本原以 1.3.0 发布、后修正为 **v1.2.3**（见仓库拆分说明）。
+         * 因此这里必须是 1.2.3 —— 若仍写 1.3.0，桌面端报上来的 serverVersion 永远
+         * 小于它，用户会被无限提示「请升级到一个并不存在的版本」。
+         */
+        const val MIN_SERVER_VERSION = "1.2.3"
     }
 }
 

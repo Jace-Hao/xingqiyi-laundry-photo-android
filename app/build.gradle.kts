@@ -17,9 +17,18 @@ android {
         // - 通知渠道（8.0 引入）是离线补传与强制更新提示的基础，低于 26 需额外兼容分支。
         minSdk = 26
         targetSdk = 34
-        // v1.4.0：新增「拍照扫码」（扫码 → 全屏连拍）
-        versionCode = 10400
-        versionName = "1.4.0"
+        // 版本号规则（本仓库独立维护，与桌面端仓库无关）：
+        //
+        // versionName —— 对外展示的版本号，本仓库自 v1.0.0 重新计数。
+        //   升版只改这里，改完同步 docs/release/v1.x.x-notes.md。
+        //
+        // versionCode —— 给 Android 系统看的单调计数器，只增不减。
+        //   它**不能**用 versionName 换算，也**不能**随 versionName 一起回退：
+        //   已装旧包（拆库前最后一个是 10400）的用户若装上 versionCode 更小的包，
+        //   系统会直接拒绝覆盖安装（INSTALL_FAILED_VERSION_DOWNGRADE），
+        //   用户只能卸载重装、丢掉离线未上传的照片。故拆库后从 10500 起每次发布 +1。
+        versionCode = 10500
+        versionName = "1.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

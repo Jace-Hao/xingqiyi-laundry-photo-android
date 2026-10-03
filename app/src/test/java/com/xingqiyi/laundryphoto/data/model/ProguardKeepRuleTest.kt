@@ -9,9 +9,9 @@ import java.io.File
 /**
  * release 混淆规则守卫：**Gson DTO 所在包必须被 proguard 显式保留**。
  *
- * ## 这条规则防的是哪个 bug（v1.3.1 线上事故）
+ * ## 这条规则防的是哪个 bug（拆库前的线上事故）
  *
- * v1.3.0 的 `proguard-rules.pro` 写的是：
+ * 拆库前的 `proguard-rules.pro` 写的是：
  * ```
  * -keep class com.xingqiyi.laundryphoto.data.remote.** { *; }
  * ```
@@ -139,7 +139,7 @@ class ProguardKeepRuleTest {
         val json = """
             {"ok":true,"data":{"app":"xingqiyi-laundry-photo","apiVersion":2,
             "features":{"uploadRaw":true,"setNote":true,"thumb":true,
-            "photoTokenQuery":true},"serverVersion":"1.3.0"}}
+            "photoTokenQuery":true},"serverVersion":"1.2.3"}}
         """.trimIndent()
 
         val type = object : TypeToken<ApiEnvelope<CapabilitiesDto>>() {}.type
@@ -149,7 +149,7 @@ class ProguardKeepRuleTest {
         val caps = requireNotNull(env.data)
         assertThat(caps.appName).isEqualTo("xingqiyi-laundry-photo")
         assertThat(caps.apiVersionValue).isEqualTo(2)
-        assertThat(caps.serverVersionText).isEqualTo("1.3.0")
+        assertThat(caps.serverVersionText).isEqualTo("1.2.3")
         assertThat(caps.uploadRaw).isTrue()
         assertThat(caps.setNote).isTrue()
         assertThat(caps.thumb).isTrue()

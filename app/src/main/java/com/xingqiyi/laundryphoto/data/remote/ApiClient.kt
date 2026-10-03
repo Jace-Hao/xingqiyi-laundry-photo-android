@@ -207,7 +207,7 @@ class ApiClient(
      * 「服务端返回了本系统不认识的非 JSON 内容」——责任在服务端或地址填错。
      * 但 R8 剥离 DTO 字段时抛的也是 [JsonIOException]，责任在**发布包本身**。
      *
-     * 两者混为一谈的后果非常具体：v1.3.0 就因为混淆规则漏了 `data.model.**`，
+     * 两者混为一谈的后果非常具体：移动端曾因混淆规则漏了 `data.model.**`，
      * release 包里 `ApiEnvelope`/`CapabilitiesDto` 被剥成零字段空壳，
      * 于是每次 ping 都抛 JsonIOException，被翻译成
      * 「已连接到 xxx，但对方返回的不是本系统的数据」——

@@ -57,7 +57,7 @@ class PingFingerprintTest {
     fun `新版服务端的完整响应通过校验`() {
         val json = """
             {"ok":true,"data":{"app":"xingqiyi-laundry-photo","apiVersion":2,
-            "serverVersion":"1.3.1","features":{"uploadRaw":true,"setNote":true,
+            "serverVersion":"1.2.3","features":{"uploadRaw":true,"setNote":true,
             "thumb":true,"photoTokenQuery":true}}}
         """.trimIndent()
         assertThat(isOurServer(json)).isTrue()

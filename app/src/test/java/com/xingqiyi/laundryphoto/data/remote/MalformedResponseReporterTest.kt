@@ -79,7 +79,7 @@ class MalformedResponseReporterTest {
 
         assertThat(msg).contains("xingqiyi")
         // 既然对方回的就是本系统的 JSON，必须把「升级桌面端」这条指引给出来
-        assertThat(msg).contains("1.3.0")
+        assertThat(msg).contains("1.2.3")
     }
 
     @Test
