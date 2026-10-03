@@ -6,6 +6,7 @@ import com.xingqiyi.laundryphoto.data.model.DeleteBatchResult
 import com.xingqiyi.laundryphoto.data.model.ForceUpdateDto
 import com.xingqiyi.laundryphoto.data.model.LogEntryDto
 import com.xingqiyi.laundryphoto.data.model.LoginResult
+import com.xingqiyi.laundryphoto.data.model.MobileUpdateInfoDto
 import com.xingqiyi.laundryphoto.data.model.OverviewDto
 import com.xingqiyi.laundryphoto.data.model.Paged
 import com.xingqiyi.laundryphoto.data.model.RecordDto
@@ -120,6 +121,17 @@ interface ApiService {
 
     @POST("api/system/checkUpdate")
     suspend fun checkUpdate(@Body body: Map<String, @JvmSuppressWildcards Any?>): ApiEnvelope<UpdateInfoDto>
+
+    /**
+     * 移动端专用更新查询（桌面端 v1.2.4 起）。
+     *
+     * 只扫更新文件夹里的 .apk，返回候选 APK 的版本/大小/sha256/说明。
+     * 老服务端没有该接口时会返回「接口不存在」，调用方（ServerUpdateSource）捕获
+     * [ApiError.Unsupported] 后静默降级到 [checkUpdate]，不弹任何错误。
+     * body 里带上当前版本，与服务端的比较结果一起回传（但客户端仍以本地版本比较为准）。
+     */
+    @POST("api/system/checkMobileUpdate")
+    suspend fun checkMobileUpdate(@Body body: Map<String, @JvmSuppressWildcards Any?>): ApiEnvelope<MobileUpdateInfoDto>
 
     @POST("api/system/settings")
     suspend fun updateSystemSettings(@Body body: Map<String, @JvmSuppressWildcards Any?>): ApiEnvelope<Any?>

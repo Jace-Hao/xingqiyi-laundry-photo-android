@@ -11,4 +11,93 @@
     <!-- 权限说明 -->
     <string name="perm_camera_rationale">拍照录入衣物照片需要相机权限。拒绝后将无法拍摄存档，查询功能不受影响。</string>
     <string name="perm_notify_rationale">开启通知后，离线照片补传完成、账号被其他设备顶下线时会及时提醒你。</string>
+
+    <!-- 软件更新（U-COPY 文案清单，逐条对应 PRD §11 与 mobile-updater-design.md §10.x） -->
+    <string name="update_channel_name">软件更新</string>
+    <string name="update_channel_desc">更新包下载进度、就绪提醒与失败提示</string>
+
+    <!-- U-COPY-01 可选更新对话框标题 -->
+    <string name="update_found_title">发现新版本 v%1$s</string>
+    <!-- U-COPY-02 阻断页副标题 -->
+    <string name="update_block_subtitle">需要安装 v%1$s（安装包 %2$s）后才能继续使用</string>
+    <!-- U-COPY-03 强制更新警示 -->
+    <string name="update_force_title">管理员要求必须更新后才能继续使用</string>
+    <!-- U-COPY-04 强制更新剩余次数 -->
+    <string name="update_force_postpone">你现在可以先忙，我还会再提醒你 %1$d 次。超过之后就必须更新了</string>
+    <!-- U-COPY-05 已是最新 -->
+    <string name="update_uptodate">已经是最新版本（v%1$s），不用更新</string>
+    <!-- U-COPY-06 无更新说明 -->
+    <string name="update_no_notes">管理员没有写这次的更新说明。更新不会删除你的照片</string>
+    <!-- U-COPY-07 下载中提示 -->
+    <string name="update_download_hint">下载时可以正常干活，进度会在手机顶部的通知里显示，网卡了会自动重试</string>
+    <!-- U-COPY-08 安装权限引导 -->
+    <string name="update_perm_install">手机出于安全考虑，默认不允许安装不是应用商店下载的软件。请允许「星期衣衣物照片」安装更新——这个权限只用于安装本软件的官方更新，不会安装别的东西</string>
+    <!-- U-COPY-09 权限被系统拦截 -->
+    <string name="update_perm_blocked">手机当前不允许安装更新，请先在系统设置里允许后再试</string>
+    <!-- U-COPY-10 阻断页按返回 -->
+    <string name="update_block_back">这次更新必须完成才能继续，请先点「立即更新」</string>
+    <!-- U-COPY-11 更新前安抚 -->
+    <string name="update_reassure">更新过程中 App 会关闭并重新打开一次，你的离线照片不会丢失</string>
+    <!-- U-COPY-12 离线照片保护标题 -->
+    <string name="update_guard_title">还有 %1$d 张照片没有传到服务器</string>
+    <!-- U-COPY-13 先去补传按钮 -->
+    <string name="update_guard_upload">先传给服务器</string>
+    <!-- U-COPY-14 备份到相册按钮（P1，本期留位） -->
+    <string name="update_guard_backup">备份到手机相册</string>
+    <!-- U-COPY-15 安装成功 -->
+    <string name="update_installed">更新完成，正在打开新版本</string>
+    <!-- U-COPY-16 进度文案 -->
+    <string name="update_progress">已下载 %1$s / %2$s · %3$s/秒</string>
+    <!-- U-COPY-17 重试中 -->
+    <string name="update_retrying">网络不太稳，正在第 %1$d 次重试…</string>
+    <!-- U-COPY-18 下载失败 -->
+    <string name="update_fail_network">更新包没能下载完成。通常是店里 WiFi 信号不好。请走到路由器附近再点重试</string>
+    <!-- U-COPY-19 下载过慢 -->
+    <string name="update_too_slow">网速太慢，先停下来了。换个位置靠近路由器，再点重试</string>
+    <!-- U-COPY-20 鉴权失败 -->
+    <string name="update_fail_auth">服务器拒绝了这次下载（连接码不对）。请到「设置」重新配置服务器连接码</string>
+    <!-- U-COPY-21 文件不存在 -->
+    <string name="update_fail_missing">服务器上找不到这个更新包了（可能已被清理）。请联系店里的管理员重新放一份</string>
+    <!-- U-COPY-22 空间不足 -->
+    <string name="update_fail_space">手机存储空间不够放这个更新包（还需要 %1$s）。请先删掉一些照片或视频，或点「清理更新缓存」</string>
+    <!-- U-COPY-23 校验失败-哈希 -->
+    <string name="update_verify_hash">下载到的文件不完整（校验没通过），我已经删掉了，请重新下载</string>
+    <!-- U-COPY-24 校验失败-包名 -->
+    <string name="update_verify_package">这个安装包不是「星期衣衣物照片」，已停止安装。请联系管理员确认放到服务器上的文件是否正确</string>
+    <!-- U-COPY-25 校验失败-版本更低 -->
+    <string name="update_verify_version">这个安装包并不比现在用的新，已停止安装。请联系管理员换成新版本的安装包</string>
+    <!-- U-COPY-26 安装冲突（需卸载） -->
+    <string name="update_install_conflict">手机不让直接覆盖安装（安装包签名和现在用的不一样）。如果要卸载后重装，请先备份离线照片，否则那些照片会丢失</string>
+    <!-- U-COPY-27 不兼容 -->
+    <string name="update_install_incompatible">这个版本的手机装不了这个更新包，请联系管理员</string>
+    <!-- U-COPY-28 取消确认 -->
+    <string name="update_cancel_confirm">要取消这次下载吗？已经下载的部分会被删掉，下次需要重新下载</string>
+    <!-- U-COPY-29 校验中 -->
+    <string name="update_verifying">正在检查安装包是否完整，请不要关闭页面</string>
+    <!-- U-COPY-30 安装中 -->
+    <string name="update_installing">正在安装，接下来交给手机系统完成，装好后会自动打开新版本</string>
+    <!-- U-COPY-31 无可用包 -->
+    <string name="update_no_package">这台服务器还没有提供手机版的安装包，请让管理员把 APK 放进「软件更新」文件夹</string>
+    <!-- U-COPY-32 服务端不支持 -->
+    <string name="update_unsupported">这台服务器的桌面端版本较旧，不支持手机自查更新。请让管理员升级桌面端，或手动安装新版本</string>
+    <!-- U-COPY-33 跳过提示（手动检查时） -->
+    <string name="update_skipped_hint">你之前跳过过 v%1$s，所以我一直没有提醒。现在仍可以更新它</string>
+    <!-- U-COPY-34 复制错误（Toast） -->
+    <string name="update_copied">错误信息已复制，发给技术同事即可</string>
+    <!-- U-COPY-35 清理缓存完成 -->
+    <string name="update_cache_cleared">已清理 %1$s 的更新缓存</string>
+
+    <!-- U-COPY-36 debug 包提示条（仅 debug 构建显示，正式包永不显示） -->
+    <string name="update_debug_banner">当前是调试版，更新会并列安装一个正式版 App；正式发布的版本不受此影响</string>
+
+    <!-- 设置页「软件更新」卡片 -->
+    <string name="update_card_title">软件更新</string>
+    <string name="update_card_check">检查更新</string>
+    <string name="update_card_last_check">上次检查：%1$s</string>
+    <string name="update_card_none">暂未检查过</string>
+    <string name="update_card_clean_cache">清理更新缓存</string>
+    <string name="update_card_cleaning">清理中…</string>
+    <string name="update_card_version">当前版本 v%1$s</string>
+    <string name="update_card_new_available">有可用更新</string>
+    <string name="update_card_checking">正在检查…</string>
 </resources>

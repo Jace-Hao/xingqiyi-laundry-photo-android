@@ -40,15 +40,20 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.xingqiyi.laundryphoto.LaundryApp
 import com.xingqiyi.laundryphoto.ui.components.ConfirmDialog
 import com.xingqiyi.laundryphoto.ui.components.Dimens
 import com.xingqiyi.laundryphoto.ui.components.InfoRow
 import com.xingqiyi.laundryphoto.ui.components.PrimaryButton
 import com.xingqiyi.laundryphoto.ui.theme.Danger
 import com.xingqiyi.laundryphoto.ui.theme.ThemeMode
+import com.xingqiyi.laundryphoto.ui.update.UpdateSettingsCard
+import com.xingqiyi.laundryphoto.ui.update.UpdateViewModel
 
 /**
  * 设置页。
@@ -76,6 +81,10 @@ fun SettingsScreen(
     var showClear by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) { vm.toast.collect { snackbar.showSnackbar(it) } }
+
+    val appContext = LocalContext.current.applicationContext
+    val updateVm = viewModel { UpdateViewModel((appContext as LaundryApp).container.update) }
+    LaunchedEffect(Unit) { updateVm.toasts.collect { snackbar.showSnackbar(it) } }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbar) },
@@ -147,6 +156,9 @@ fun SettingsScreen(
                     InfoRow("连接码", if (apiToken.isNotBlank()) "••••••" else "（未配置）")
                 }
             }
+
+            // ---------- 软件更新（内置在线更新入口） ----------
+            UpdateSettingsCard(vm = updateVm, versionName = vm.versionName)
 
             // ---------- 离线队列管理 ----------
             Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {

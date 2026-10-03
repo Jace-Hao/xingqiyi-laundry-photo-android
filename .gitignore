@@ -26,3 +26,6 @@ local.properties
 release-apk/
 *.apk
 *.aab
+
+# Windows 保留设备名：本机误生成的垃圾文件，无法正常读取/删除
+nul

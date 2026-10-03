@@ -11,6 +11,13 @@ android {
 
     defaultConfig {
         applicationId = "com.xingqiyi.laundryphoto"
+        // 新增编译期常量：release 构建的「真实包名」。
+        // debug 构建 applicationIdSuffix=".debug" 会让 BuildConfig.APPLICATION_ID 变成
+        // "com.xingqiyi.laundryphoto.debug"，而服务端下发的正式 APK 包名是
+        // "com.xingqiyi.laundryphoto"。更新校验时必须用这个不随 variant 变化的常量，
+        // 否则 debug 包会把自己的正式更新包判成「别人的包」而永远装不上（详见 DefaultUpdateVerifier）。
+        buildConfigField("String", "RELEASE_APPLICATION_ID", "\"com.xingqiyi.laundryphoto\"")
+
         // minSdk 26（Android 8.0）：
         // - CameraX 1.3 要求 21+，WorkManager 要求 14+，ROOM 要求 16+；
         // - 26 起原生支持 DataStore/字体资源与自适应图标，且覆盖绝大多数在用收银/拍照设备；
@@ -27,8 +34,8 @@ android {
         //   已装旧包（拆库前最后一个是 10400）的用户若装上 versionCode 更小的包，
         //   系统会直接拒绝覆盖安装（INSTALL_FAILED_VERSION_DOWNGRADE），
         //   用户只能卸载重装、丢掉离线未上传的照片。故拆库后从 10500 起每次发布 +1。
-        versionCode = 10500
-        versionName = "1.0.0"
+        versionCode = 10501
+        versionName = "1.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -178,6 +185,8 @@ dependencies {
 
     // ---------- 测试 ----------
     testImplementation("junit:junit:4.13.2")
+    // 更新包下载测试：用 MockWebServer 验证「连接码走请求头、不进 URL」「断流/低速/退避」等
+    testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1")
     testImplementation("androidx.arch.core:core-testing:2.2.0")
     testImplementation("com.google.truth:truth:1.4.4")

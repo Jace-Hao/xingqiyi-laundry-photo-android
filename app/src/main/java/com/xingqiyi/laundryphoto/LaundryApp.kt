@@ -19,5 +19,7 @@ class LaundryApp : Application() {
         container = AppContainer(this)
         // 渠道创建是幂等的，放在这里保证任何入口（含 WorkManager）发通知时渠道已存在
         Notifier.ensureChannels(this)
+        // 冷启动清理：删除残留的 .part 与超过 7 天的 .apk（保护窗内的不动），避免占用磁盘
+        container.update.performColdStartSweep()
     }
 }

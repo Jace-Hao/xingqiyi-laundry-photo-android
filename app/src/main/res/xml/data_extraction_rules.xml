@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Android 12+ 设备端到端迁移（和云备份）排除规则。
+
+  与 backup_rules.xml 的取舍完全一致：安装包是「可重新下载的临时物」，
+  不该挤占 25MB 的 Auto Backup 配额，避免把 Room 数据库（离线照片队列等不可逆数据）冲掉。
+  详见 backup_rules.xml 的说明。
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="file" path="updates/" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="file" path="updates/" />
+    </device-transfer>
+</data-extraction-rules>

@@ -1,0 +1,229 @@
+%% 移动端内置在线更新 · 时序图合集（导出自 docs/mobile-updater-design.md §6）
+%%
+%% 6.1 冷启动自动检查
+sequenceDiagram
+    autonumber
+    participant A as MainActivity/AppRoot
+    participant C as UpdateCoordinatorImpl
+    participant PS as UpdatePolicyStore
+    participant FS as UpdateFileStore
+    participant S as ServerUpdateSource
+    participant Api as ApiClient/ApiService
+    participant R as UpdatePlanResolver
+    participant U as UpdateOverlay UI
+
+    A->>C: onColdStart(loggedIn=true)
+    C->>PS: pendingSnapshot()
+    alt 上次未完成且 phase=INSTALLING
+        PS-->>C: snapshot(preUpdateVersionCode)
+        C->>C: 比对已安装 versionCode
+        Note over C: 已变化 -> 安装成功，清快照 -> Idle
+    else snapshot 为 null
+        C->>FS: sweep(now, protectUntilMs, 7d)
+        Note over FS: 异步：删所有 .part + 7 天前的 apk，update.log 不删
+    end
+    C->>PS: lastCheckAt(host)
+    alt 距上次 < 24h
+        C-->>A: Idle（不发请求）
+    else 超过 24h 或从未检查
+        C->>U: Checking
+        C->>S: discover(SelfVersion)
+        S->>Api: POST api/system/checkMobileUpdate(currentVersion...)
+        alt 新接口可用
+            Api-->>S: MobileUpdateInfoDto
+            Note over S: 只扫 .apk 的结果，origin=MOBILE_API
+        else ApiError.Unsupported（老服务端「接口不存在」）
+            S->>Api: POST api/system/checkUpdate
+            Api-->>S: UpdateInfoDto
+            Note over S: 本机过滤：必须是 .apk 结尾 且 本地版本比较确实更高
+        end
+        S->>Api: POST api/system/forceUpdate
+        Api-->>S: ForceUpdateDto(fileName, fileExists, files)
+        Note over S: forceTrack 仅当 fileName 以 .apk 结尾且 fileExists 才成立；否则静默置 null
+        S-->>C: SourceReport(latestApk, forceTrack, origin, host)
+        C->>R: resolve(report, self, skipped, postpone, now, manual=false)
+        alt UpToDate / NoPackage / Skipped
+            R-->>C: 静默
+            C->>PS: markChecked(host, now)
+            C->>U: Idle（不弹任何东西）
+        else Offer(plan)
+            R-->>C: UpdatePlan
+            C->>PS: markChecked(host, now)
+            Note over C: 若当前路由不允许展示 -> 暂存，等 setOverlayAllowed(true) 再放出
+            C->>U: UpdateAvailable(plan)
+        end
+    end
+
+%% 6.2 手动检查→下载→校验→安装
+sequenceDiagram
+    autonumber
+    participant U as UpdateOverlay UI
+    participant C as UpdateCoordinatorImpl
+    participant PS as UpdatePolicyStore
+    participant FS as UpdateFileStore
+    participant D as OkHttpUpdateDownloader
+    participant Http as 服务端 /update-file
+    participant V as DefaultUpdateVerifier
+    participant I as SessionPackageInstaller
+    participant N as Notifier
+    participant OR as OfflineRepository
+
+    U->>C: check(MANUAL_SETTINGS)
+    Note over C: 绕过节流；10s 防连点；所有结果都要可见反馈
+    C->>C: discover + resolve（同 6.1）
+    C-->>U: UpdateAvailable(plan)
+
+    U->>C: startDownload()
+    C->>FS: requiredBytesFor(size) 与 availableBytes()
+    alt 空间不足
+        FS-->>C: 不足
+        C-->>U: Failed(DOWNLOAD, U-COPY-22, 清理更新缓存按钮)
+    else 空间充足
+        C->>FS: 下载前清理 .part
+        C->>PS: savePendingSnapshot(DOWNLOADING)
+        C->>D: download(spec, dest, onProgress)
+        loop 直到 100% 或失败
+            D->>Http: GET /update-file?f=...  Header: x-api-token
+            Http-->>D: 200 + 字节流
+            D-->>C: DownloadProgress(节流 400ms / 1%)
+            C->>N: notifyUpdateProgress(percent, 已下载/总量, 速度)
+            Note over D: watchdog：连续 20s 无字节 -> STALLED；15s 均速<20KB/s -> TOO_SLOW
+        end
+        D->>FS: 写 <name>.apk.part 完成后 commitPart()（原子 rename）
+        D-->>C: Success(file, bytes)
+        C->>U: Verifying
+        C->>V: verify(file, spec, self)
+        Note over V: size -> sha256(有才校) -> 包名(含 debug 放宽) -> versionCode 严格大于
+        alt VerifyResult.Fail
+            V-->>C: Fail(reason, expected, actual)
+            C->>FS: 删除残缺文件
+            C->>U: Failed(VERIFY, 按 reason 分诊 U-COPY-23/24/25)
+        else VerifyResult.Ok
+            V-->>C: Ok(packageName, versionCode)
+            C->>OR: countWaiting()
+            C->>U: ReadyToInstall(pendingCount, canInstallUnknownSources)
+            alt pendingCount > 0
+                U->>U: 显示数据保护确认 U-COPY-12
+                U->>OR: 用户选「先去补传」 -> SyncManager.enqueueImmediate() + 显示 x/y
+            end
+            U->>C: confirmInstall()
+            alt 未授权安装未知应用
+                U->>U: InstallPermissionGate 三段式引导
+            end
+            C->>I: install(file, spec, self)
+            I->>I: createSession + openWrite(copyTo) + fsync + commit(PendingIntent)
+            C->>U: Installing
+            I-->>C: InstallEvent.Succeeded / Failed(kind)
+            C->>PS: setProtectUntil(now + 30min)
+            Note over C: 成功后进程会被系统替换；冷启动由 preUpdateVersionCode 判定成功
+        end
+    end
+
+%% 6.3 失败重试与取消
+sequenceDiagram
+    autonumber
+    participant Http as 服务端
+    participant D as OkHttpUpdateDownloader
+    participant C as UpdateCoordinatorImpl
+    participant U as UpdateOverlay UI
+    participant N as Notifier
+
+    Note over D: attempt=1
+    D->>Http: GET /update-file
+    Http--xD: 连接被重置 / 20s 无字节 / 15s 过慢
+    D->>D: call.cancel() 并记录 reason
+    D-->>C: Failure(STALLED)
+    alt 可重试且 attempt < 上限
+        C->>U: Downloading(attempt=2, retryInMs=2000)
+        U->>N: U-COPY-17「第 2 次重试」
+        D->>D: delay(2000)（退避序列 2s / 6s / 15s）
+        D->>Http: GET /update-file（从头重下，服务端不支持 Range）
+        Http-->>D: 200
+        D-->>C: Success
+    else HTTP 401 / 403 / 404 / DISK_FULL
+        C->>U: Failed(retryable=false, U-COPY-20/21/22)
+        Note over U: 不进入自动重试；仅提供重试/清理/复制错误信息
+    else 已达上限（3 次）
+        C->>U: Failed(retryable=true, U-COPY-18)
+        U->>C: 用户点「重试」
+        C->>D: 重置 attempt=1 后重新 download
+    end
+
+    opt 用户点「取消下载」
+        U->>C: cancelDownload()
+        C->>D: cancel()
+        D->>Http: call.cancel()
+        D-->>C: Cancelled
+        C->>U: Failed(DOWNLOAD, 取消, retryable=true)
+        Note over C: .part 在下次冷启动/下载前被 sweep 清理
+    end
+```
+
+%% 6.4 强制更新阻断流程
+sequenceDiagram
+    autonumber
+    participant S as ServerUpdateSource
+    participant C as UpdateCoordinatorImpl
+    participant R as UpdatePlanResolver
+    participant PS as UpdatePolicyStore
+    participant U as UpdateOverlay UI
+    participant App as MainActivity
+
+    S-->>C: SourceReport(latestApk=1.2.0.apk, forceTrack=1.1.0.apk)
+    C->>R: resolve(...)
+    Note over R: 版本取高 -> target=1.2.0；mandatory = (target.fileName == forceTrack.fileName) = false
+    R-->>C: Offer(plan=1.2.0, mandatory=false)
+    C->>U: 普通更新对话框（三个按钮，含「跳过此版本」）
+
+    Note over S,C: 场景切换：服务端把强推文件换成最新版 1.2.0.apk
+    S-->>C: SourceReport(latestApk=1.2.0.apk, forceTrack=1.2.0.apk)
+    C->>R: resolve(skippedVersion="1.2.0", postpone=none)
+    Note over R: mandatory=true 且命中已跳过 -> 撤销跳过
+    R-->>C: Offer(plan=1.2.0, mandatory=true, remainingPostpone=3)
+    C->>PS: setSkippedVersion(null)
+    C->>U: 强制更新对话框（只有「立即更新」/「稍后」）
+
+    U->>C: postpone()
+    C->>PS: bumpPostpone("1.2.0", now) -> count=1, firstPromptAtMs=now
+    C->>U: Idle（本次不再打扰）
+
+    Note over C: 次日冷启动，仍在同一宽限期内
+    C->>PS: postpone() -> count=2
+    Note over PS: skippedVersion 已在强制命中时被清空
+    C->>U: 再次 Offer(mandatory=true, remainingPostpone=1)
+
+    Note over C: 第 4 次冷启动 或 now > firstPromptAtMs + 24h
+    C->>R: resolve(...)
+    R-->>C: Block(plan)
+    C->>U: 全屏阻断页 U-COPY-03 + U-COPY-02
+    U->>U: BackHandler 拦截返回 -> Toast U-COPY-10
+    alt 用户点「立即更新」
+        U->>C: startDownload()（流程同 6.2）
+    else 用户点「退出应用」
+        U->>App: onExitApp() -> finishAffinity()
+    end
+```
+
+%% 6.5 安装回执丢失与冷启动恢复
+sequenceDiagram
+    autonumber
+    participant I as SessionPackageInstaller
+    participant C as UpdateCoordinatorImpl
+    participant PS as UpdatePolicyStore
+    participant PM as PackageManager
+    participant U as UI
+
+    C->>PS: savePendingSnapshot(INSTALLING, preUpdateVersionCode=10500)
+    I->>I: session.commit()
+    Note over I,C: 回执到达前进程被系统杀掉
+    C->>PS: (冷启动) pendingSnapshot()
+    PS-->>C: INSTALLING / preUpdate=10500
+    C->>PM: getPackageInfo(自身).versionCode
+    alt installedCode > preUpdateVersionCode
+        C->>PS: 清空快照 + clearPostpone + setSkippedVersion(null)
+        C->>U: Toast U-COPY-15（更新完成）
+    else installedCode == preUpdateVersionCode
+        C->>PS: setSnapshotPhase(DOWNLOADING) 或保留 Installing 标记
+        C->>U: Failed(INSTALL, U-COPY-30 的分诊, retryable=true)
+    end
+```

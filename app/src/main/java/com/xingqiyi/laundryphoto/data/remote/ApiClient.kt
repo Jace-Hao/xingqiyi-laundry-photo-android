@@ -256,6 +256,49 @@ class ApiClient(
             if (width != null && width > 0) append("&w=").append(width)
         }
     }
+
+    // ---------- 更新包下载：独立出口 ----------
+
+    @Volatile
+    private var downloadHttp: OkHttpClient? = null
+
+    /**
+     * 专供「移动端更新包下载」使用的独立 OkHttpClient（懒创建、进程内复用）。
+     *
+     * ## 为什么必须独立，而不是复用给 Retrofit 配的那个
+     *
+     * 1. **内存炸弹**：retrofit 那个实例挂了 `ResponseSnippetCaptureInterceptor`，
+     *    会把响应正文读进内存做脱敏——对 21MB 的 APK 就是一次性吃进 21MB+ 的 String，
+     *    低端门店平板（2GB RAM）上直接 OOM，而且是在用户正盯着进度条的时候崩。
+     * 2. **读超时语义**：那里配的是 readTimeout 60s（为 3~8MB 照片上传设计）。
+     *    下载场景下，把「20s 无字节」这个产品需求押在 OkHttp 的 readTimeout 语义上不可靠
+     *    （不同版本对 body 源流的包裹行为不一致），因此这里给它 5 分钟作底线，
+     *    真正的断流/低速判定由 `OkHttpUpdateDownloader` 自己的看门狗负责（20s / 15s）。
+     * 3. **鉴权**：这里**故意不放 AuthInterceptor**。下载请求的令牌由 `OkHttpUpdateDownloader`
+     *    在发起时从 `SessionHolder` 显式取出注入，避免「 OkHttp 实例持有过期令牌」这种状态泄漏。
+     * 4. **不重试**：retryOnConnectionFailure(false)。重试编排（3 次、2s→6s→15s 指数退避、
+     *    按错误类型分级）在我们自己的代码里，双重复试会变成 2×3 = 6 次，十几台手机一起重试就能打满门店 WiFi。
+     */
+    fun downloadClient(): OkHttpClient = downloadHttp ?: synchronized(this) {
+        downloadHttp ?: OkHttpClient.Builder()
+            .connectTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(5, TimeUnit.MINUTES)
+            .writeTimeout(30, TimeUnit.SECONDS)
+            .retryOnConnectionFailure(false)
+            .build()
+            .also { downloadHttp = it }
+    }
+
+    /**
+     * 更新包下载地址。**连接码刻意不进 URL**（与 `photoUrl()` 的做法不同）：
+     * `photoUrl` 走查询参数是历史妥协（Coil 加不了请求头），下载是我们自己的代码，
+     * 没有理由让连接码出现在服务端访问日志、抓包明文行和任何 Referer 上。
+     * 实测 [com.xingqiyi.laundryphoto.data.remote.ApiClientKt] 不可见——这里直接拼
+     * `GET {baseUrl}/update-file?f=<encoded>`，调用方再注入 `x-api-token` 头。
+     */
+    fun updateFileUrl(fileName: String): String =
+        if (baseUrl.isBlank()) "" else
+            baseUrl + "/update-file?f=" + URLEncoder.encode(fileName, "UTF-8").replace("+", "%20")
 }
 
 /**

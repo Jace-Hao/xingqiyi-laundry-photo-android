@@ -6,4 +6,11 @@
 -->
 <paths xmlns:android="http://schemas.android.com/apk/res/android">
     <cache-path name="shared_photos" path="share/" />
+    <!--
+      更新安装包专用白名单：只开放应用私有目录下的 updates/ 子目录。
+      APK 经 PackageInstaller.Session 安装时不需要这个授权（字节由我们直接写进 session），
+      但降级到 ACTION_VIEW（部分 ROM 的 Session 实现有坑）时，系统安装器需要 content:// URI，
+      因此必须给一个严格受限的路径——绝不能给 <root-path> 或整个 filesDir。
+    -->
+    <files-path name="shared_updates" path="updates/" />
 </paths>

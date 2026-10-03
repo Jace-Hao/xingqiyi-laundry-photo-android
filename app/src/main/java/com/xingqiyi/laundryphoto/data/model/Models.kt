@@ -205,19 +205,124 @@ data class RenameBatchResult(
 )
 
 data class ForceUpdateDto(
-    val enabled: Boolean = false,
-    val version: String = "",
-    val fileName: String = "",
-    val at: String = "",
-    val by: String = ""
-)
+    /** 是否开启了强制推送。注意：Gson 缺失字段一律填 null，非空类型挡不住，这里必须可空 */
+    val enabled: Boolean? = null,
+    val version: String? = "",
+    val fileName: String? = "",
+    val at: String? = "",
+    val by: String? = "",
+    /**
+     * 推送文件是否还存在于更新文件夹。服务端在文件被移走时会置 false，
+     * 客户端据此避免「下载一个已经不存在的安装包」。
+     */
+    val fileExists: Boolean? = null,
+    /**
+     * 更新文件夹里的全部安装包清单（桌面端返回 .exe/.zip/.msi，新版本含 .apk）。
+     * 用 List 而非数组：Gson 缺失时不填 null，配合 below 兜底返回空列表。
+     */
+    val files: List<UpdateFileEntryDto>? = null
+) {
+    /** 兜底后的「是否开启」：缺字段按 false 处理，避免 NPE */
+    val enabledValue: Boolean get() = enabled == true
+    /** 兜底后的文件名：缺字段按空串 */
+    val fileNameText: String get() = fileName.orEmpty()
+    /** 兜底后的 version */
+    val versionText: String get() = version.orEmpty()
+    /**
+     * 兜底后的「推送文件是否还在」：缺字段按 false。
+     * 老服务端没有该字段，此时移动端会因为拿不到 true 而判定强推无效——这是安全的一侧。
+     */
+    val fileExistsValue: Boolean get() = fileExists == true
+    /** 兜底后的安装包清单：缺字段按空列表（配套 fileList.filter 只在非空时用） */
+    val fileList: List<UpdateFileEntryDto> get() = files.orEmpty()
+}
 
+/** 更新文件夹里的安装包条目（forceUpdate.files / checkMobileUpdate 共用） */
+data class UpdateFileEntryDto(
+    val name: String? = "",
+    val size: Long? = 0,
+    val version: String? = ""
+) {
+    val nameText: String get() = name.orEmpty()
+    val versionText: String get() = version.orEmpty()
+}
+
+/**
+ * 桌面端旧接口的更新信息（POST api/system/checkUpdate）。
+ *
+ * 注意：服务端实际返回的是 `latestFile`（更新文件夹里版本号最高的文件名，**不一定是 APK**），
+ * 而不是 `url` / `notes`。旧接口只用于「新接口不可用时的降级」，移动端必须自己过滤 `latestFile`
+ * 是否以 .apk 结尾，且以本地版本比较为唯一真相。
+ */
 data class UpdateInfoDto(
-    val latestVersion: String = "",
-    val hasUpdate: Boolean = false,
-    val url: String = "",
-    val notes: String = ""
-)
+    val currentVersion: String? = "",
+    val latestVersion: String? = "",
+    val latestFile: String? = "",
+    val hasUpdate: Boolean? = null
+) {
+    /** 兜底后的「是否有更新」：缺字段按 false */
+    val hasUpdateValue: Boolean get() = hasUpdate == true
+    /** 兜底后的最新文件名（可能为 .exe，需要调用方自行过滤扩展名） */
+    val latestFileText: String get() = latestFile.orEmpty()
+}
+
+/**
+ * 移动端专用更新查询（POST api/system/checkMobileUpdate，桌面端 v1.2.4 起）。
+ *
+ * 与 `UpdateInfoDto` 不同，这里只扫 .apk，并把安装包的关键元信息（大小、sha256、说明）一并下发。
+ * 所有字段可空 + 兜底：服务端缺字段（老版本、文件异常）时绝不能 NPE——
+ * 本项目在 R8 剥离 DTO 事故上的教训是「Gson 不参与 Kotlin 主构造、缺字段即 null」。
+ */
+data class MobileUpdateInfoDto(
+    /** 服务端是否支持新接口。值为 false 时调用方应静默降级到老接口 */
+    val supported: Boolean? = null,
+    /** 更新文件夹里是否真的有可用的手机版 APK */
+    val hasPackage: Boolean? = null,
+    /** 候选 APK 文件名，如 xingqiyi-laundry-photo-android-1.1.0.apk；无包时为空串 */
+    val fileName: String? = "",
+    /** APK 版本号（取文件名里的 \d+\.\d+\.\d+） */
+    val version: String? = "",
+    /** 文件字节数；取不到为 0，客户端遇到 0 跳过大小校验 */
+    val size: Long? = 0,
+    /** 64 位小写 hex；服务端算不出来为空串，客户端据此跳过哈希校验（绝不阻断） */
+    val sha256: String? = "",
+    /** 更新说明：同名 .md → 同名 .json 的 notes 字段 → 空串（三级降级） */
+    val notes: String? = "",
+    /** 说明来源：md / json / 空串，仅用于日志 */
+    val notesSource: String? = "",
+    /** 是否比客户端上报的当前版本更新（以服务端比较为准，但客户端仍以本地比较为最终真相） */
+    val hasUpdate: Boolean? = null,
+    /** 回显的客户端当前版本，便于日志与排障 */
+    val currentVersion: String? = ""
+) {
+    /** 兜底：服务端是否支持新接口。缺字段按 false——老服务端要静默降级，不能误判为支持 */
+    val isSupported: Boolean get() = supported == true
+    /** 兜底：是否有可用包 */
+    val hasPackageValue: Boolean get() = hasPackage == true
+    /** 兜底：文件名（空串表示无包） */
+    val fileNameText: String get() = fileName.orEmpty()
+    /** 兜底：版本号 */
+    val versionText: String get() = version.orEmpty()
+    /**
+     * 兜底：文件大小，缺字段按 0（客户端跳过大小校验）。
+     * 负数同样夹到 0：服务端 stat 失败时可能给 -1，夹住之后校验层 `sizeBytes > 0`
+     * 的判断才会正确地「跳过」而不是拿 -1 去比长度。
+     */
+    val sizeValue: Long get() = (size ?: 0L).coerceAtLeast(0L)
+    /** 兜底：sha256，缺字段按空串（客户端跳过哈希校验） */
+    val sha256Text: String get() = sha256.orEmpty()
+    /** 兜底：更新说明 */
+    val notesText: String get() = notes.orEmpty()
+    /** 兜底：说明来源 */
+    val notesSourceText: String get() = notesSource.orEmpty()
+    /** 兜底：是否有更新 */
+    val hasUpdateValue: Boolean get() = hasUpdate == true
+    /**
+     * 只认 `.apk`：服务端更新文件夹里桌面端 `.exe` 与手机版 `.apk` 共存，
+     * 客户端必须自己再挡一次（决策 D1「客户端同时做防御」）。
+     */
+    val isApkFile: Boolean get() = fileNameText.endsWith(".apk", ignoreCase = true)
+}
 
 /** 会话快照：登录成功后持久化，冷启动免登录 */
 data class SessionSnapshot(

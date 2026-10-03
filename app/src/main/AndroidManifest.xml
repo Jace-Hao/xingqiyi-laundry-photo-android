@@ -23,6 +23,11 @@
     <!-- 大照片上传可能超过普通后台任务的时长限制，需要前台服务权限（Android 14+ 须声明类型） -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <!--
+      内置在线更新需要安装下载到的 APK。Android 8.0+ 默认禁止「安装非应用商店来源的 App」，
+      必须在 Manifest 声明该权限，并在运行时引导用户到系统设置开启（见 InstallPermissionGate）。
+    -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <!-- 相机并非所有角色都需要（查询账号只用查询），声明为可选避免商店按硬件过滤设备 -->
     <uses-feature
@@ -32,6 +37,11 @@
         android:name="android.hardware.camera.autofocus"
         android:required="false" />
 
+    <!--
+      fullBackupContent / dataExtractionRules：Auto Backup 会把 filesDir 计入 25MB 配额，
+      下载的 APK（约 20MB）可能把 Room 数据库挤出备份，换机/还原时丢数据。
+      这里显式排除更新目录（详见 res/xml/backup_rules.xml 与 data_extraction_rules.xml）。
+    -->
     <application
         android:name=".LaundryApp"
         android:allowBackup="true"
@@ -43,6 +53,8 @@
         android:hardwareAccelerated="true"
         android:largeHeap="true"
         android:usesCleartextTraffic="true"
+        android:fullBackupContent="@xml/backup_rules"
+        android:dataExtractionRules="@xml/data_extraction_rules"
         tools:targetApi="34">
 
         <!--
@@ -78,6 +90,16 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
         </provider>
+
+        <!--
+          更新安装回执接收器：PackageInstaller.Session.commit 后，系统把安装结果
+          （成功 / 被拦截 / 签名冲突 / 不兼容 / 已中止 / 存储不足）通过广播回发到这里。
+          不导出（exported=false）：只有本 App 自己通过 PendingIntent 发出的广播能送达，
+          避免被其它应用冒名顶替触发安装状态误判。
+        -->
+        <receiver
+            android:name=".update.UpdateInstallReceiver"
+            android:exported="false" />
     </application>
 
 </manifest>

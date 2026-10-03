@@ -14,6 +14,23 @@ import com.xingqiyi.laundryphoto.data.repository.OfflineRepository
 import com.xingqiyi.laundryphoto.data.repository.RecordRepository
 import com.xingqiyi.laundryphoto.data.repository.SystemRepository
 import com.xingqiyi.laundryphoto.data.repository.UserRepository
+import com.xingqiyi.laundryphoto.sync.Notifier
+import com.xingqiyi.laundryphoto.update.DataStoreUpdatePolicyStore
+import com.xingqiyi.laundryphoto.update.DefaultUpdateFileStore
+import com.xingqiyi.laundryphoto.update.DefaultUpdateVerifier
+import com.xingqiyi.laundryphoto.update.OkHttpUpdateDownloader
+import com.xingqiyi.laundryphoto.update.PackageManagerApkInspector
+import com.xingqiyi.laundryphoto.update.RealClock
+import com.xingqiyi.laundryphoto.update.ServerUpdateSource
+import com.xingqiyi.laundryphoto.update.SessionPackageInstaller
+import com.xingqiyi.laundryphoto.update.UpdateContract
+import com.xingqiyi.laundryphoto.update.UpdateCoordinatorImpl
+import com.xingqiyi.laundryphoto.update.UpdateLogger
+import com.xingqiyi.laundryphoto.update.selfVersionFromBuildConfig
+import kotlinx.coroutines.CoroutineName
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import java.io.File
 
 /**
@@ -44,6 +61,34 @@ class AppContainer(private val context: Context) {
     val logRepository = LogRepository(api)
     val systemRepository = SystemRepository(api)
     val offlineRepository = OfflineRepository(database, File(context.filesDir, "offline"))
+
+    // ---------- 内置在线更新（六大角色编排） ----------
+    // APK 只落 filesDir/updates/（见 DefaultUpdateFileStore），与缓存目录隔离，且被备份规则排除。
+    val updateDir: File = File(context.filesDir, "updates")
+
+    /**
+     * 更新编排器（唯一真源）。一次性把发现/下载/校验/安装/策略/文件空间六个角色装配好，
+     * 下载走**应用级协程** `updateIoScope`（D10：不依赖 WorkManager，进程存活期间即可）。
+     */
+    val update: UpdateContract.UpdateCoordinator = UpdateCoordinatorImpl(
+        self = selfVersionFromBuildConfig(),
+        source = ServerUpdateSource(api),
+        downloader = OkHttpUpdateDownloader(
+            client = api.downloadClient(),
+            tokenProvider = { sessionHolder.apiToken },
+            clock = RealClock
+        ),
+        verifier = DefaultUpdateVerifier(PackageManagerApkInspector(context.packageManager)),
+        installer = SessionPackageInstaller(context),
+        policyStore = DataStoreUpdatePolicyStore(context),
+        fileStore = DefaultUpdateFileStore(updateDir),
+        logger = UpdateLogger(updateDir),
+        notifier = Notifier,
+        clock = RealClock,
+        ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO + CoroutineName("xqy-update")),
+        appContext = context,
+        fileUrlOf = { fileName -> api.updateFileUrl(fileName) }
+    )
 
     /** 上传/离线处理用的临时目录 */
     val workDir: File = File(context.cacheDir, "capture").apply { mkdirs() }

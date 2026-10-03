@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Auto Backup 排除规则（Android ≤11）。
+
+  ## 为什么要排除 updates 目录
+
+  `filesDir` 会被 Android 的 Auto Backup 计入 25MB 配额。下载的安装包约 20MB，
+  一旦被纳入备份，很可能把更重要的 Room 数据库（离线照片队列、账号信息）挤出配额，
+  换机/还原时直接丢数据——而且这种丢失在单元测试和编译期都发现不了，只有真机还原才暴露。
+
+  更新包是「临时可重新下载」的东西，不值得占用备份配额；任何需要恢复的场景下，
+  重新跑一次更新检查即可重新拿到它。因此这里显式排除 `updates/`。
+
+  与 `data_extractionRules`（Android 12+ 的迁移规则）保持一致。
+-->
+<full-backup-content>
+    <exclude domain="file" path="updates/" />
+</full-backup-content>

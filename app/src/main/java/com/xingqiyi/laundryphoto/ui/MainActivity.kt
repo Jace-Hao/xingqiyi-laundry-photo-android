@@ -48,8 +48,9 @@ import com.xingqiyi.laundryphoto.data.model.SessionSnapshot
 import com.xingqiyi.laundryphoto.data.model.UserDto
 import com.xingqiyi.laundryphoto.data.remote.SessionMonitor
 import com.xingqiyi.laundryphoto.di.AppContainer
-import com.xingqiyi.laundryphoto.sync.Notifier
 import com.xingqiyi.laundryphoto.sync.SyncManager
+import com.xingqiyi.laundryphoto.ui.update.UpdateOverlay
+import com.xingqiyi.laundryphoto.ui.update.UpdateViewModel
 import com.xingqiyi.laundryphoto.ui.burst.BurstCaptureScreen
 import com.xingqiyi.laundryphoto.ui.burst.BurstCaptureViewModel
 import com.xingqiyi.laundryphoto.ui.capture.CaptureScreen
@@ -145,6 +146,8 @@ private fun AppRoot(
 
     val revoked by SessionMonitor.revoked.collectAsState()
 
+    val updateVm = viewModel { UpdateViewModel(container.update) }
+
     // ---------- 冷启动会话恢复 ----------
     LaunchedEffect(Unit) {
         container.ensureConfigured()
@@ -175,13 +178,13 @@ private fun AppRoot(
         }
     }
 
-    // ---------- 登录后检查服务端是否强制要求更新 ----------
+    // 在线更新检查与强制更新提示已由 UpdateCoordinator + UpdateOverlay 统一接管，
+    // 不再在此处单独轮询 forceUpdate（见 UpdateCoordinatorImpl / ui/update/*）。
+
+    // ---------- 登录后：冷启动恢复 + 自动检查更新（异步，不挡界面） ----------
     LaunchedEffect(currentUser) {
         if (currentUser != null) {
-            runCatching {
-                val fu = container.systemRepository.forceUpdate()
-                if (fu?.enabled == true) Notifier.notifyForceUpdate(container.appContext, fu.version)
-            }
+            updateVm.coldStart(true)
         }
     }
 
@@ -199,7 +202,14 @@ private fun AppRoot(
     val currentRoute = navBackStackEntry?.destination?.route
     val showBottomBar = currentUser != null && Routes.BOTTOM.contains(currentRoute)
 
-    Scaffold(
+    // 更新浮层只在「非拍照/扫码/连拍」路由显示（拍照界面不能被遮挡，设计铁律）
+    val overlayAllowed = currentUser != null &&
+        currentRoute != null &&
+        currentRoute !in setOf(Routes.CAPTURE, Routes.SCAN, Routes.BURST)
+    LaunchedEffect(overlayAllowed) { container.update.setOverlayAllowed(overlayAllowed) }
+
+    Box(Modifier.fillMaxSize()) {
+        Scaffold(
         bottomBar = {
             if (showBottomBar) {
                 val role = currentUser?.roleEnum
@@ -387,6 +397,8 @@ private fun AppRoot(
                 )
             }
         }
+    }
+        UpdateOverlay(updateVm, overlayAllowed)
     }
 }
 

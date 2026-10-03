@@ -1,0 +1,182 @@
+%% 移动端内置在线更新 · 类图
+classDiagram
+    direction LR
+
+    class UpdateCoordinator {
+        <<interface>>
+        +state: StateFlow~UpdateState~
+        +progress: StateFlow~DownloadProgress~
+        +onColdStart(loggedIn: Boolean)
+        +setOverlayAllowed(allowed: Boolean)
+        +check(trigger: CheckTrigger)
+        +startDownload()
+        +cancelDownload()
+        +retry()
+        +skipVersion()
+        +postpone()
+        +confirmInstall()
+        +clearCacheBytes(): Long
+        +copyDiagnostics(): String
+    }
+
+    class UpdateCoordinatorImpl {
+        -scope: CoroutineScope
+        -source: UpdateSource
+        -downloader: UpdateDownloader
+        -verifier: UpdateVerifier
+        -installer: UpdateInstaller
+        -store: UpdateFileStore
+        -policy: UpdatePolicyStore
+        -logger: UpdateLogger
+        -resolver: UpdatePlanResolver
+        -_state: MutableStateFlow~UpdateState~
+    }
+
+    class UpdateSource {
+        <<interface>>
+        +discover(self: SelfVersion): SourceReport
+    }
+    class ServerUpdateSource {
+        -api: ApiClient
+        -systemRepo: SystemRepository
+    }
+
+    class UpdateDownloader {
+        <<interface>>
+        +download(spec, dest, onProgress): DownloadOutcome
+        +cancel()
+    }
+    class OkHttpUpdateDownloader {
+        -client: OkHttpClient
+        -clock: Clock
+        -retry: RetryPolicy
+        -watchdog: 断流与低速检测
+    }
+
+    class UpdateVerifier {
+        <<interface>>
+        +verify(file, spec, self): VerifyResult
+    }
+    class DefaultUpdateVerifier {
+        -inspector: ApkInspector
+        -rules: VerifyRules
+    }
+    class VerifyRules {
+        <<pure>>
+        +check(expected, actual): VerifyResult
+    }
+    class ApkInspector {
+        <<interface>>
+        +inspect(file): ApkInfo
+    }
+    class PackageManagerApkInspector
+
+    class UpdateInstaller {
+        <<interface>>
+        +canRequestPackageInstalls(): Boolean
+        +install(file, spec, self): InstallHandle
+    }
+    class SessionPackageInstaller {
+        -packageInstaller: PackageInstaller
+        -context: Context
+    }
+    class IntentInstaller {
+        <<降级>>
+    }
+
+    class UpdatePolicyStore {
+        <<interface>>
+        +lastCheckAt(host): Long
+        +markChecked(host, ms)
+        +skippedVersion(): Flow~String~
+        +postpone(): ForcePostpone
+        +bumpPostpone(version, ms)
+        +pendingSnapshot(): PendingUpdateSnapshot
+        +protectUntilMs(): Long
+    }
+    class DataStoreUpdatePolicyStore
+
+    class UpdateFileStore {
+        <<interface>>
+        +updateDir: File
+        +finalFileFor(name): File
+        +partFileFor(name): File
+        +requiredBytesFor(size): Long
+        +availableBytes(): Long
+        +commitPart(name)
+        +sweep(nowMs, protectMs, retainMs): Long
+    }
+    class DefaultUpdateFileStore
+
+    class UpdatePlanResolver {
+        <<pure object>>
+        +GRACE_WINDOW_MS
+        +MAX_POSTPONE
+        +resolve(input: ResolveInput): Resolution
+    }
+    class VersionComparator {
+        <<pure object>>
+        +compare(a, b): Int
+        +isNewer(candidate, current): Boolean
+    }
+    class UpdateFailureMapper {
+        <<pure object>>
+        +fromDownload(f: DownloadFailure): FailureCopy
+        +fromInstall(f: InstallFailure): FailureCopy
+    }
+    class UpdateLogger {
+        +i(event, msg, elapsedMs, bytes)
+        +w(...)
+        +e(...)
+        +tail(n): List~UpdateLogEntry~
+    }
+    class UpdateDiagnostics {
+        <<pure>>
+        +build(state, self, conn): String
+    }
+
+    class SelfVersion
+    class RemoteApk
+    class SourceReport
+    class ForceTrack
+    class UpdatePlan
+    class DownloadSpec
+    class DownloadProgress
+    class VerifyResult
+    class InstallHandle
+    class ForcePostpone
+    class PendingUpdateSnapshot
+    class FailureCopy
+    class MobileUpdateInfoDto
+
+    UpdateCoordinator <|.. UpdateCoordinatorImpl
+    UpdateSource <|.. ServerUpdateSource
+    UpdateDownloader <|.. OkHttpUpdateDownloader
+    UpdateVerifier <|.. DefaultUpdateVerifier
+    ApkInspector <|.. PackageManagerApkInspector
+    UpdateInstaller <|.. SessionPackageInstaller
+    UpdateInstaller <|.. IntentInstaller
+    UpdatePolicyStore <|.. DataStoreUpdatePolicyStore
+    UpdateFileStore <|.. DefaultUpdateFileStore
+
+    UpdateCoordinatorImpl --> UpdateSource : uses
+    UpdateCoordinatorImpl --> UpdateDownloader : uses
+    UpdateCoordinatorImpl --> UpdateVerifier : uses
+    UpdateCoordinatorImpl --> UpdateInstaller : uses
+    UpdateCoordinatorImpl --> UpdateFileStore : uses
+    UpdateCoordinatorImpl --> UpdatePolicyStore : uses
+    UpdateCoordinatorImpl --> UpdateLogger : uses
+    UpdateCoordinatorImpl --> UpdatePlanResolver : uses
+    UpdateCoordinatorImpl --> VersionComparator : uses
+    UpdateCoordinatorImpl --> UpdateFailureMapper : uses
+    UpdateCoordinatorImpl --> UpdateDiagnostics : uses
+    DefaultUpdateVerifier --> ApkInspector : uses
+    DefaultUpdateVerifier --> VerifyRules : uses
+    ServerUpdateSource --> MobileUpdateInfoDto : 反序列化
+    OkHttpUpdateDownloader --> UpdateFileStore : 写 part 与 rename
+    UpdatePlanResolver --> SelfVersion
+    UpdatePlanResolver --> UpdatePlan
+    SourceReport --> RemoteApk
+    SourceReport --> ForceTrack
+    UpdatePlan --> RemoteApk
+```
