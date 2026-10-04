@@ -42,8 +42,6 @@
     <string name="update_guard_title">还有 %1$d 张照片没有传到服务器</string>
     <!-- U-COPY-13 先去补传按钮 -->
     <string name="update_guard_upload">先传给服务器</string>
-    <!-- U-COPY-14 备份到相册按钮（P1，本期留位） -->
-    <string name="update_guard_backup">备份到手机相册</string>
     <!-- U-COPY-15 安装成功 -->
     <string name="update_installed">更新完成，正在打开新版本</string>
     <!-- U-COPY-16 进度文案 -->
@@ -106,4 +104,20 @@
     <string name="update_exit_confirm_message">退出后仍需重新打开本应用才能继续拍照</string>
     <string name="update_exit_confirm_ok">退出应用</string>
     <string name="update_exit_confirm_cancel">继续更新</string>
+
+    <!--
+      更新对话框的按钮与标题文案（PRD §4.9 NFR-U2：所有文案来自 strings.xml）。
+      集中在此而非散落在 Composable 里，是为了让「改措辞」只需改一处——
+      同一句话存在两份时，门店会看到两个不一致的说法。
+    -->
+    <string name="update_action_update_now">立即更新</string>
+    <string name="update_action_install_now">立即安装</string>
+    <string name="update_action_skip">跳过此版本</string>
+    <string name="update_action_postpone">稍后再说</string>
+    <string name="update_action_later">稍后</string>
+    <string name="update_action_retry">重试</string>
+    <string name="update_action_ack">知道了</string>
+    <string name="update_action_close">关闭</string>
+    <string name="update_action_copy_error">复制错误信息</string>
+    <string name="update_failed_title">更新失败</string>
 </resources>
