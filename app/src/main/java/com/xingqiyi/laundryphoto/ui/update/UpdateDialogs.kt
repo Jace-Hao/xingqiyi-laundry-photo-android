@@ -40,7 +40,9 @@ fun UpdateAvailableDialog(
     } else plan.target.notes
 
     AlertDialog(
-        onDismissRequest = { if (!plan.mandatory) onSkip() },
+        // PRD §3.6.1 ②：点外框空白**不可**关闭，避免店员随手一点就永久错过这一版。
+        // 跳过只能由显式的「跳过此版本」按钮触发（mandatory 时无此按钮）。
+        onDismissRequest = { },
         confirmButton = {
             TextButton(onClick = onDownload) { Text("立即更新") }
         },
@@ -86,12 +88,17 @@ fun UpdateAvailableDialog(
 @Composable
 fun UpdateBlockedDialog(
     plan: UpdateContract.UpdatePlan,
-    onDownload: () -> Unit
+    onDownload: () -> Unit,
+    onExitApp: () -> Unit
 ) {
     AlertDialog(
         onDismissRequest = { },
         confirmButton = {
             TextButton(onClick = onDownload) { Text("立即更新") }
+        },
+        // 阻断态不能把店员锁死：必须提供「退出应用」退路，否则下载/安装连续失败时界面成死胡同
+        dismissButton = {
+            TextButton(onClick = onExitApp) { Text("退出应用") }
         },
         title = { Text(androidx.compose.ui.platform.LocalContext.current.getString(R.string.update_force_title)) },
         text = {
