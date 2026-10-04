@@ -29,6 +29,12 @@ jobs:
           distribution: temurin
           java-version: '17'
       - uses: gradle/actions/setup-gradle@v4
+      - name: 补回 gradlew 执行位
+        # 仓库是在 Windows 上提交的，core.fileMode=false 导致 gradlew 在 Git 索引里是
+        # 100644（无执行位）。Linux runner 上直接 ./gradlew 会报
+        # `Permission denied` + 退出码 126。仓库侧已用 update-index --chmod=+x 修正，
+        # 这里再 chmod 一次作为兜底：任何在 Windows 上重新克隆或改权限的提交都不会再复发。
+        run: chmod +x ./gradlew
       - name: 运行单元测试
         run: ./gradlew testDebugUnitTest
       - name: 上传测试报告
@@ -52,6 +58,9 @@ jobs:
           java-version: '17'
 
       - uses: gradle/actions/setup-gradle@v4
+
+      - name: 补回 gradlew 执行位
+        run: chmod +x ./gradlew
 
       # 从 app/build.gradle.kts 读取版本，避免 Release 说明、tag、附件名三者对不上
       - name: 读取版本号
