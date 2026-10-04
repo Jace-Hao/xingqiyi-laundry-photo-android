@@ -18,6 +18,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.xingqiyi.laundryphoto.R
@@ -39,11 +40,20 @@ fun UpdateDownloadPanel(
     val target = state.plan.target
     val percent = progress?.percent ?: 0
     val text = if (progress != null && progress.totalBytes > 0) {
-        appContextString(R.string.update_progress, humanBytes(progress.bytesRead), humanBytes(progress.totalBytes), humanBytes(progress.bytesPerSec))
+        stringResource(
+            R.string.update_progress,
+            humanBytes(progress.bytesRead),
+            humanBytes(progress.totalBytes),
+            humanBytes(progress.bytesPerSec)
+        )
     } else {
-        "下载中 $percent%"
+        stringResource(R.string.update_downloading_percent, percent)
     }
-    val retryHint = if (state.retryInMs != null) " · 即将重试" else ""
+    val retryHint = if (state.retryInMs != null) {
+        stringResource(R.string.update_retry_soon)
+    } else {
+        ""
+    }
 
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
         Card(
@@ -52,7 +62,7 @@ fun UpdateDownloadPanel(
         ) {
             Column(Modifier.fillMaxWidth().padding(12.dp)) {
                 Text(
-                    "正在下载 v${target.versionName}",
+                    stringResource(R.string.update_downloading_title, target.versionName),
                     style = MaterialTheme.typography.titleSmall,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -66,7 +76,7 @@ fun UpdateDownloadPanel(
                 Text(text + retryHint, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(Modifier.height(8.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                    OutlinedButton(onClick = onCancel) { Text("取消") }
+                    OutlinedButton(onClick = onCancel) { Text(stringResource(R.string.update_action_cancel)) }
                 }
             }
         }
@@ -97,8 +107,3 @@ internal fun humanBytes(bytes: Long): String {
     val mb = bytes / (1024.0 * 1024.0)
     return if (mb >= 1) "${DecimalFormat("#.#").format(mb)} MB" else "${bytes / 1024} KB"
 }
-
-/** 便于在 Composable 中拼带参数的字符串资源（避免每个文件重复 import）。 */
-@Composable
-private fun appContextString(resId: Int, vararg args: Any): String =
-    androidx.compose.ui.platform.LocalContext.current.getString(resId, *args)

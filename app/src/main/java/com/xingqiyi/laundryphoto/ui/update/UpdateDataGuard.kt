@@ -6,6 +6,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import com.xingqiyi.laundryphoto.R
 
 /**
@@ -29,7 +30,7 @@ fun UpdateDataGuard(
     AlertDialog(
         onDismissRequest = { },
         confirmButton = {
-            TextButton(onClick = onContinue) { Text("继续安装") }
+            TextButton(onClick = onContinue) { Text(stringResource(R.string.update_action_continue_install)) }
         },
         dismissButton = {
             TextButton(onClick = onUpload) { Text(ctx.getString(R.string.update_guard_upload)) }
@@ -37,7 +38,7 @@ fun UpdateDataGuard(
         title = { Text(ctx.getString(R.string.update_guard_title, pendingCount)) },
         text = {
             Text(
-                "安装会重启 App。未上传的照片不会丢失（仍在本地），但建议先传给服务器，避免误以为丢失。",
+                stringResource(R.string.update_guard_body),
                 style = MaterialTheme.typography.bodyMedium
             )
         }

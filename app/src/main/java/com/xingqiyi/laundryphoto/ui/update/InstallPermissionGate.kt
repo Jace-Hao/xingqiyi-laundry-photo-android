@@ -9,6 +9,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import com.xingqiyi.laundryphoto.BuildConfig
 import com.xingqiyi.laundryphoto.R
 
@@ -35,12 +36,12 @@ fun InstallPermissionGate(onInstall: () -> Unit) {
                         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                     ctx.startActivity(intent)
                 }
-            }) { Text("去设置授权") }
+            }) { Text(stringResource(R.string.update_action_go_settings)) }
         },
         dismissButton = {
-            TextButton(onClick = onInstall) { Text("我已允许，继续安装") }
+            TextButton(onClick = onInstall) { Text(stringResource(R.string.update_action_already_granted)) }
         },
-        title = { Text("需要安装权限") },
+        title = { Text(stringResource(R.string.update_perm_title)) },
         text = {
             Text(
                 ctx.getString(R.string.update_perm_install),
