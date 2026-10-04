@@ -157,6 +157,34 @@ fun UpdateReadyToInstallDialog(
     )
 }
 
+/**
+ * 「退出应用」二次确认对话框。
+ *
+ * 阻断态对话框每次打开 App 都会弹，店员误触模态按钮很常见；一次误触导致 App
+ * 自己退到桌面，在店员眼里就是「APP 自己崩了」，这类报障远比多按一次按钮贵。
+ * 因此退出必须二次确认，且否定按钮用「继续更新」而不是「取消」——把用户导回正路。
+ */
+@Composable
+fun UpdateExitConfirmDialog(
+    onConfirmExit: () -> Unit,
+    onStay: () -> Unit
+) {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    AlertDialog(
+        onDismissRequest = onStay,
+        confirmButton = {
+            TextButton(onClick = onConfirmExit) {
+                Text(ctx.getString(R.string.update_exit_confirm_ok), color = Danger)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onStay) { Text(ctx.getString(R.string.update_exit_confirm_cancel)) }
+        },
+        title = { Text(ctx.getString(R.string.update_exit_confirm_title)) },
+        text = { Text(ctx.getString(R.string.update_exit_confirm_message)) }
+    )
+}
+
 /** 失败对话框：展示错误文案 + 重试 / 复制错误信息 / 关闭。 */
 @Composable
 fun UpdateFailedDialog(

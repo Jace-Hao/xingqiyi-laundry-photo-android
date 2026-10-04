@@ -44,6 +44,8 @@ fun UpdateOverlay(vm: UpdateViewModel, allowed: Boolean) {
     // 通知权限（Android 13+）：首次触发下载前申请一次，避免下载进度通知静默不出现。
     // 无论授权与否都不阻断下载，App 内进度面板照常显示。
     var notifyRequested by remember { mutableStateOf(false) }
+    // 阻断页「退出应用」二次确认：先置位再真正退出，避免店员误触直接把 App 带回桌面
+    var showExitConfirm by remember { mutableStateOf(false) }
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { /* 结果不阻断下载，忽略 */ }
@@ -71,7 +73,7 @@ fun UpdateOverlay(vm: UpdateViewModel, allowed: Boolean) {
         is UpdateState.Blocked -> UpdateBlockedDialog(
             plan = s.plan,
             onDownload = onStartDownload,
-            onExitApp = { exitApp(ctx) }
+            onExitApp = { showExitConfirm = true }
         )
         is UpdateState.Downloading -> UpdateDownloadPanel(
             state = s,
@@ -107,6 +109,14 @@ fun UpdateOverlay(vm: UpdateViewModel, allowed: Boolean) {
                 }
                 Toast.makeText(ctx, copiedTip, Toast.LENGTH_SHORT).show()
             }
+        )
+    }
+
+    // 二次确认浮在阻断页之上；点「继续更新」只关掉自己，阻断页仍在
+    if (showExitConfirm) {
+        UpdateExitConfirmDialog(
+            onConfirmExit = { exitApp(ctx) },
+            onStay = { showExitConfirm = false }
         )
     }
 }

@@ -100,4 +100,10 @@
     <string name="update_card_version">当前版本 v%1$s</string>
     <string name="update_card_new_available">有可用更新</string>
     <string name="update_card_checking">正在检查…</string>
+
+    <!-- 强制阻断页「退出应用」二次确认：阻断态每次开 App 都会弹，误触率高，必须先确认 -->
+    <string name="update_exit_confirm_title">确定要退出吗？</string>
+    <string name="update_exit_confirm_message">退出后仍需重新打开本应用才能继续拍照</string>
+    <string name="update_exit_confirm_ok">退出应用</string>
+    <string name="update_exit_confirm_cancel">继续更新</string>
 </resources>
