@@ -66,8 +66,20 @@ jobs:
       - name: 读取版本号
         id: ver
         run: |
-          V=$(grep -m1 'versionName' app/build.gradle.kts | sed -E 's/.*"([0-9.]+)".*/\1/')
-          C=$(grep -m1 'versionCode' app/build.gradle.kts | sed -E 's/[^0-9]*([0-9]+).*/\1/')
+          # 必须排除注释行：build.gradle.kts 里 versionName/versionCode 的**注释说明**
+          # 出现在真正赋值之前（前者讲「对外展示的版本号」，后者讲「单调计数器」），
+          # 早期用 `grep -m1 versionName` 会抓到注释，产出
+          # `v// versionName —— 对外展示的版本号…` 这种垃圾值，
+          # 导致下面「校验 tag 与代码版本一致」必然失败（v1.1.0 首次发版就栽在这）。
+          # 两道过滤：先剔掉 // 注释，再要求 `标识符 = "值"` 的赋值形态。
+          V=$(grep -vE '^\s*//' app/build.gradle.kts \
+              | grep -m1 -E 'versionName\s*=' | sed -E 's/.*"([0-9.]+)".*/\1/')
+          C=$(grep -vE '^\s*//' app/build.gradle.kts \
+              | grep -m1 -E 'versionCode\s*=' | sed -E 's/[^0-9]*([0-9]+).*/\1/')
+          if [ -z "$V" ] || [ -z "$C" ]; then
+            echo "::error::未能从 app/build.gradle.kts 解析出 versionName/versionCode（V=$V C=$C）"
+            exit 1
+          fi
           echo "name=$V" >> "$GITHUB_OUTPUT"
           echo "code=$C" >> "$GITHUB_OUTPUT"
           echo "tag=v$V" >> "$GITHUB_OUTPUT"
